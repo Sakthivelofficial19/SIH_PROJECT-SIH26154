@@ -1,0 +1,15 @@
+# Python environment & cache
+__pycache__/
+*.pyc
+.env
+venv/
+env/
+
+# Output deliverables & local database
+output_files/
+transform_history.db
+
+# Node dependencies & builds
+node_modules/
+dist/
+.DS_Store
