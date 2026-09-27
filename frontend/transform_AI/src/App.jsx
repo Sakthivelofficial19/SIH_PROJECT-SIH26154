@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 
+// Centralized Backend URL
+const API_BASE_URL = "https://sih-project-ps-154.onrender.com";
+
 const INPUT_MODES = [
   { id: "text", label: "Direct Text", accept: null, icon: "📝" },
   { id: "txt_file", label: "Text File (.txt)", accept: ".txt,.md,.log", icon: "📄" },
@@ -81,13 +84,13 @@ export default function App() {
     tone, language, detail, objective, showResults, resultsData, plainSummaryText
   ]);
 
-  // Load history records from backend SQLite
+  // Load history records from backend PostgreSQL / SQLite
   const fetchHistory = useCallback(async (query = "") => {
     setIsLoadingHistory(true);
     try {
       const url = query.trim()
-        ? `http://127.0.0.1:8000/api/history?query=${encodeURIComponent(query)}`
-        : `http://127.0.0.1:8000/api/history`;
+        ? `${API_BASE_URL}/api/history?query=${encodeURIComponent(query)}`
+        : `${API_BASE_URL}/api/history`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -191,10 +194,14 @@ export default function App() {
     }
 
     try {
-      const response = await fetch("https://sih-project-ps-154.onrender.com/api/transform", {
+      const response = await fetch(`${API_BASE_URL}/api/transform`, {
         method: "POST",
         body: formData,
       });
+
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP status ${response.status}`);
+      }
 
       const data = await response.json();
       if (data.success) {
@@ -212,7 +219,7 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      alert("Could not connect to backend server. Make sure server.py is running on port 8000.");
+      alert("Could not connect to backend server. If Render was idle, please allow 30-50 seconds for the free-tier instance to wake up, then try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -243,7 +250,7 @@ export default function App() {
     }
     if (!window.confirm("Are you sure you want to delete this history record?")) return;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/history/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE_URL}/api/history/${id}`, { method: "DELETE" });
       if (res.ok) {
         if (selectedHistoryItem?.id === id) setSelectedHistoryItem(null);
         fetchHistory(historySearch);
