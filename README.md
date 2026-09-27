@@ -21,7 +21,7 @@ This platform accepts source content in whatever form it naturally exists — ty
 
 ## Key Features
 
-- Accepts text, PDF, PPTX, audio, video, and image inputs
+- Accepts text, PDF, PPTX, audio, video, image etc.. inputs
 - Generates multiple output formats from the same source in a single run
 - Configurable audience, tone, language, detail level, and objective
 - Multilingual output support: English, Tamil, Hindi, Malayalam, Telugu
