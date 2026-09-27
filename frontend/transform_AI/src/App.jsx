@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 
-// Centralized Backend URL
+// Centralized Backend URL for Render Cloud Service
 const API_BASE_URL = "https://sih-project-ps-154.onrender.com";
 
 const INPUT_MODES = [
