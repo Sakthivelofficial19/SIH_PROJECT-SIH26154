@@ -764,4 +764,43 @@ def run_pipeline(
     tone: str = "professional",
     language: str = "English",
     detail_level: str = "moderate",
-    objective:
+    objective: str = None,
+    style: str = None,
+    description: str = None,
+) -> dict:
+    normalized_outputs = [
+        "infographic" if o == "infographics" else o for o in selected_outputs
+    ]
+    valid_outputs = [o for o in normalized_outputs if o in OUTPUT_TYPES]
+    if not valid_outputs:
+        raise ValueError(f"No valid output types specified. Available: {list(OUTPUT_TYPES.keys())}")
+
+    source_text = extract_to_text(file_path=file_path)
+
+    active_description = (description if description and description.strip() else MANUAL_DESCRIPTION).strip()
+    active_description = active_description if active_description else None
+
+    results = {}
+    for idx, output_type in enumerate(valid_outputs):
+        if idx > 0:
+            time.sleep(1.0)
+
+        print(f"\n[Stage 2 & 3] Generating '{output_type}'...")
+        try:
+            content = generate_output(
+                source_text=source_text,
+                output_type=output_type,
+                audience=audience,
+                tone=tone,
+                language=language,
+                detail_level=detail_level,
+                objective=objective,
+                style=style,
+                custom_instruction=active_description,
+            )
+            deliverable = build_deliverable(content, output_type, output_dir=output_dir, language=language)
+            results[output_type] = {"status": "ok", "deliverable": deliverable, "text": content}
+        except Exception as e:
+            results[output_type] = {"status": "error", "message": str(e)}
+
+    return results
