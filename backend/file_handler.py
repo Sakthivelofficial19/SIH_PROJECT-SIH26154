@@ -538,7 +538,6 @@ def export_to_mp3(text_content: str, output_path: str, language: str = "English"
 
 
 def format_infographic_text(json_text: str) -> str:
-    """Parses infographic JSON with resilient fallback if JSON is imperfect."""
     try:
         data = json.loads(json_text)
     except Exception:
@@ -575,7 +574,6 @@ def format_infographic_text(json_text: str) -> str:
 
 
 def format_x_thread_text(json_text: str) -> str:
-    """Parses X-thread JSON array into clean numbered tweet items."""
     try:
         tweets = json.loads(json_text)
     except Exception:
@@ -596,7 +594,6 @@ def format_x_thread_text(json_text: str) -> str:
 
 
 def export_to_pdf(text_content: str, output_path: str, title: str = "Executive Briefing") -> str:
-    """Renders professional PDF, automatically handling markdown and section headers."""
     doc = SimpleDocTemplate(
         output_path, pagesize=letter,
         rightMargin=48, leftMargin=48, topMargin=44, bottomMargin=44
@@ -767,104 +764,4 @@ def run_pipeline(
     tone: str = "professional",
     language: str = "English",
     detail_level: str = "moderate",
-    objective: str = None,
-    style: str = None,
-    description: str = None,
-) -> dict:
-    normalized_outputs = [
-        "infographic" if o == "infographics" else o for o in selected_outputs
-    ]
-    valid_outputs = [o for o in normalized_outputs if o in OUTPUT_TYPES]
-    if not valid_outputs:
-        raise ValueError(f"No valid output types specified. Available: {list(OUTPUT_TYPES.keys())}")
-
-    source_text = extract_to_text(file_path=file_path)
-
-    active_description = (description if description and description.strip() else MANUAL_DESCRIPTION).strip()
-    active_description = active_description if active_description else None
-
-    results = {}
-    for idx, output_type in enumerate(valid_outputs):
-        if idx > 0:
-            time.sleep(1.0)
-
-        print(f"\n[Stage 2 & 3] Generating '{output_type}'...")
-        try:
-            content = generate_output(
-                source_text=source_text,
-                output_type=output_type,
-                audience=audience,
-                tone=tone,
-                language=language,
-                detail_level=detail_level,
-                objective=objective,
-                style=style,
-                custom_instruction=active_description,
-            )
-            deliverable = build_deliverable(content, output_type, output_dir=output_dir, language=language)
-            results[output_type] = {"status": "ok", "deliverable": deliverable, "text": content}
-        except Exception as e:
-            results[output_type] = {"status": "error", "message": str(e)}
-
-    return results
-
-
-# ---------------------------------------------------------------------------
-# CLI ENTRY POINT
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Universal Content Transformation Pipeline")
-    parser.add_argument("input_file", help="Path to input file (.mp4, .txt, .pdf, .pptx, audio, image)")
-    parser.add_argument(
-        "--outputs", "-o",
-        nargs="+",
-        default=["plain_summary"],
-        choices=list(OUTPUT_TYPES.keys()),
-        help=f"Deliverable formats to generate. Options: {list(OUTPUT_TYPES.keys())}"
-    )
-    parser.add_argument(
-        "--description", "-desc",
-        default="",
-        help="Optional operator steering instructions"
-    )
-    parser.add_argument("--dir", "-d", default="./output_files", help="Output directory")
-    parser.add_argument("--audience", default="general", help="Target audience")
-    parser.add_argument("--tone", default="professional", help="Tone of content")
-    parser.add_argument("--language", default="English", help="Output language")
-
-    args = parser.parse_args()
-
-    active_desc = args.description.strip() or MANUAL_DESCRIPTION.strip()
-
-    print("\n" + "=" * 60)
-    print("RUNNING CONTENT TRANSFORMATION PIPELINE")
-    print(f"Input File:   {args.input_file}")
-    print(f"Outputs:      {args.outputs}")
-    if active_desc:
-        print(f"Description:  \"{active_desc}\"")
-    else:
-        print("Description:  [None - Standard Mode]")
-    print("=" * 60)
-
-    res = run_pipeline(
-        file_path=args.input_file,
-        selected_outputs=args.outputs,
-        output_dir=args.dir,
-        audience=args.audience,
-        tone=args.tone,
-        language=args.language,
-        description=args.description,
-    )
-
-    print("\n" + "=" * 60)
-    print("DELIVERABLES GENERATED")
-    print("=" * 60)
-    for out_type, r in res.items():
-        print(f"\n--- {out_type} ---")
-        if r["status"] == "ok":
-            print(f"[File]: {r['deliverable']}")
-            if OUTPUT_TYPES[out_type]["container"] == "text":
-                print(f"[Preview]:\n{r['text'][:250]}...\n")
-        else:
-            print(f"[ERROR]: {r['message']}")
+    objective:

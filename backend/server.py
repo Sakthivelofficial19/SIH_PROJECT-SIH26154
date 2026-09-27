@@ -1,5 +1,5 @@
 """
-server.py - REST Bridge with SQLite History Persistence for TransformAI
+server.py - REST Bridge with Hybrid PostgreSQL/SQLite History Persistence for TransformAI
 """
 import os
 import shutil
@@ -10,10 +10,17 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from file_handler import run_pipeline, OUTPUT_TYPES
+from init_db import get_connection, setup_database
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://sih-project-ps-154.onrender.com")
 
 app = FastAPI(title="TransformAI API")
 
-# Enable CORS for Vite dev server (http://localhost:5173)
+# Ensure table schema is ready when server boots
+setup_database()
+
+# Enable CORS for frontend deployment (Vercel and local dev)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,7 +34,6 @@ OUTPUT_DIR = os.path.abspath("./output_files")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 app.mount("/downloads", StaticFiles(directory=OUTPUT_DIR), name="downloads")
 
-DB_PATH = os.path.abspath("./transform_history.db")
 
 def save_transformation_record(
     input_type: str,
@@ -36,25 +42,41 @@ def save_transformation_record(
     parameters: dict,
     results: dict
 ) -> int:
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    cursor.execute("""
+    ph = "%s" if DATABASE_URL else "?"
+    query = f"""
         INSERT INTO transformations (
             timestamp, input_type, source_preview,
             selected_outputs, parameters_json, results_json
-        ) VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        current_time,
-        input_type,
-        source_preview[:250],
-        ",".join(selected_outputs),
-        json.dumps(parameters),
-        json.dumps(results)
-    ))
+        ) VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+    """
+    
+    if DATABASE_URL:
+        query += " RETURNING id;"
+        cursor.execute(query, (
+            current_time,
+            input_type,
+            source_preview[:250],
+            ",".join(selected_outputs),
+            json.dumps(parameters),
+            json.dumps(results)
+        ))
+        inserted_id = cursor.fetchone()[0]
+    else:
+        cursor.execute(query, (
+            current_time,
+            input_type,
+            source_preview[:250],
+            ",".join(selected_outputs),
+            json.dumps(parameters),
+            json.dumps(results)
+        ))
+        inserted_id = cursor.lastrowid
+
     conn.commit()
-    inserted_id = cursor.lastrowid
     conn.close()
     return inserted_id
 
@@ -77,7 +99,7 @@ async def transform_endpoint(
 ):
     raw_outputs = [o.strip() for o in outputs.split(",") if o.strip()]
 
-    # Map frontend 'text_file' to 'plain_summary' so file_handler recognizes it
+    # Map frontend 'text_file' to 'plain_summary'
     selected_outputs = [
         "plain_summary" if o == "text_file" else o
         for o in raw_outputs
@@ -88,7 +110,6 @@ async def transform_endpoint(
     if not selected_outputs:
         raise HTTPException(status_code=400, detail="No valid deliverables selected.")
 
-    # Unique batch timestamp so deliverable files never overwrite older runs
     batch_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_input_path = ""
     input_type = "text"
@@ -106,7 +127,6 @@ async def transform_endpoint(
             with open(temp_input_path, "w", encoding="utf-8") as f:
                 f.write(text_content)
 
-        # Trigger synthesis engine
         raw_results = run_pipeline(
             file_path=temp_input_path,
             selected_outputs=selected_outputs,
@@ -127,7 +147,6 @@ async def transform_endpoint(
                     orig_file = item["deliverable"]
                     ext = os.path.splitext(orig_file)[1]
                     
-                    # Store deliverable with a timestamped version name
                     versioned_name = f"{out_id}_{batch_stamp}{ext}"
                     versioned_path = os.path.join(OUTPUT_DIR, versioned_name)
                     
@@ -137,7 +156,7 @@ async def transform_endpoint(
                     payload = {
                         "status": "ok",
                         "text": item.get("text", ""),
-                        "downloadUrl": f"https://sih-project-ps-154.onrender.com/downloads/{versioned_name}",
+                        "downloadUrl": f"{RENDER_EXTERNAL_URL}/downloads/{versioned_name}",
                         "filename": versioned_name
                     }
                     response_payload[out_id] = payload
@@ -155,7 +174,6 @@ async def transform_endpoint(
             "description": description
         }
 
-        # Save transformation record into SQLite
         record_id = save_transformation_record(
             input_type=input_type,
             source_preview=source_preview,
@@ -181,26 +199,26 @@ async def transform_endpoint(
 @app.get("/api/history")
 async def get_history(query: str = ""):
     """Fetch history entries with unified search across preview, date/time, and format."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    conn = get_connection()
+    if DATABASE_URL:
+        from psycopg2.extras import RealDictCursor
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        ph = "%s"
+    else:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        ph = "?"
 
+    sql = """
+        SELECT id, timestamp, input_type, source_preview, selected_outputs, parameters_json, results_json
+        FROM transformations
+    """
     if query.strip():
         search_pattern = f"%{query.strip()}%"
-        cursor.execute("""
-            SELECT id, timestamp, input_type, source_preview, selected_outputs, parameters_json, results_json
-            FROM transformations
-            WHERE source_preview LIKE ? 
-               OR timestamp LIKE ? 
-               OR selected_outputs LIKE ?
-            ORDER BY id DESC
-        """, (search_pattern, search_pattern, search_pattern))
+        sql += f" WHERE source_preview LIKE {ph} OR timestamp LIKE {ph} OR selected_outputs LIKE {ph}"
+        cursor.execute(sql + " ORDER BY id DESC", (search_pattern, search_pattern, search_pattern))
     else:
-        cursor.execute("""
-            SELECT id, timestamp, input_type, source_preview, selected_outputs, parameters_json, results_json
-            FROM transformations
-            ORDER BY id DESC
-        """)
+        cursor.execute(sql + " ORDER BY id DESC")
 
     rows = cursor.fetchall()
     conn.close()
@@ -223,9 +241,10 @@ async def get_history(query: str = ""):
 @app.delete("/api/history/{record_id}")
 async def delete_history_item(record_id: int):
     """Delete a single history entry by ID."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM transformations WHERE id = ?", (record_id,))
+    ph = "%s" if DATABASE_URL else "?"
+    cursor.execute(f"DELETE FROM transformations WHERE id = {ph}", (record_id,))
     conn.commit()
     conn.close()
     return {"success": True, "deleted_id": record_id}
