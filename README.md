@@ -54,19 +54,24 @@ Database: Supabase Postgres in production, with automatic fallback to local SQLi
 
 ## Project Structure
 
-```
-.
 ├── backend/
 │   ├── file_handler.py     # Ingestion, generation, and file-building pipeline
 │   ├── server.py           # FastAPI routes, CORS, static file serving
 │   ├── init_db.py          # Database connection and schema setup
 │   └── output_files/       # Generated deliverables, served at /downloads
 │
-└── frontend/
-    └── transform_AI/
-        └── src/
-            └── App.jsx      # Dashboard, output selection, and history view
-```
+├── diagrams/
+│   └── architecture.png    # System architecture workflow diagram
+│
+├── frontend/
+│   └── transform_AI/
+│       └── src/
+│           └── App.jsx      # Dashboard, output selection, and history view
+│
+└── screenshots/
+    ├── dashboard.png       # Live UI dashboard screenshot
+    └── history.png         # Historical transaction ledger screenshot
+
 
 ## Installation & Setup
 
@@ -135,11 +140,11 @@ By default the frontend points at the live Render deployment regardless of wheth
 
 Live deployment: https://sih-project-ps-154.vercel.app/
 
-![Dashboard - Input Formats and Output Deliverables](./screenshots/dashboard.png)
+[Dashboard - Input Formats and Output Deliverables](./screenshots/dashboard.png)
 
 The dashboard where an operator submits source content, picks one or more output deliverable types, and sets generation parameters.
 
-![History View](./screenshots/history.png)
+[History View](./screenshots/history.png)
 
 The history view, showing past generation runs with search and re-download support.
 
