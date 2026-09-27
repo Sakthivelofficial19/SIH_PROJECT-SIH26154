@@ -137,7 +137,7 @@ async def transform_endpoint(
                     payload = {
                         "status": "ok",
                         "text": item.get("text", ""),
-                        "downloadUrl": f"http://127.0.0.1:8000/downloads/{versioned_name}",
+                        "downloadUrl": f"https://sih-project-ps-154.onrender.com/downloads/{versioned_name}",
                         "filename": versioned_name
                     }
                     response_payload[out_id] = payload

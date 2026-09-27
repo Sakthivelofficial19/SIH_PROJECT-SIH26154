@@ -191,7 +191,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/transform", {
+      const response = await fetch("https://sih-project-ps-154.onrender.com/api/transform", {
         method: "POST",
         body: formData,
       });
