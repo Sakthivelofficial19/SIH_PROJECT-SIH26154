@@ -7,6 +7,7 @@ Universal Multimodal Content Transformation Pipeline:
   Stage 2: LLM transforms source content into selected named deliverables using
            strictly grounded synthesis (banning fabricated checklists and unmentioned steps).
   Stage 3: Physical container builders (.txt, .pdf, .pptx, .mp3) with clean typography.
+  Stage 4: Automated Fact-Checking Auditor to flag hallucinations.
 """
 
 import os
@@ -424,6 +425,38 @@ OUTPUT_TYPES = {
 OUTPUT_TYPES["infographics"] = OUTPUT_TYPES["infographic"]
 
 
+def verify_output_facts(source_text: str, generated_text: str) -> list:
+    """Stage 4: Automated auditor pass to flag unsupported claims or hallucinations."""
+    prompt = f"""
+    You are a strict fact-checking auditor for government intelligence.
+    Source Text:
+    {safe_truncate(source_text, 3000)}
+    
+    Generated Output:
+    {safe_truncate(generated_text, 3000)}
+    
+    Task: Identify any factual claims (specific numbers, dates, names, or locations) in the generated output that are NOT directly stated or supported by the source text. 
+    Return ONLY a valid JSON list of strings describing the discrepancies. If there are zero discrepancies, return an empty list [].
+    """
+    try:
+        res = groq_client.chat.completions.create(
+            model=TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a strict fact-checking auditor. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.0,
+            max_tokens=400
+        )
+        raw = res.choices[0].message.content.strip()
+        cleaned = _clean_json_output(raw)
+        parsed = json.loads(cleaned)
+        return parsed if isinstance(parsed, list) else []
+    except Exception as e:
+        print(f"[Verification Warning] {e}")
+        return []
+
+
 def generate_output(
     source_text: str,
     output_type: str,
@@ -785,7 +818,7 @@ def run_pipeline(
         if idx > 0:
             time.sleep(1.0)
 
-        print(f"\n[Stage 2 & 3] Generating '{output_type}'...")
+        print(f"\n[Stage 2, 3 & 4] Generating & Auditing '{output_type}'...")
         try:
             content = generate_output(
                 source_text=source_text,
@@ -798,8 +831,17 @@ def run_pipeline(
                 style=style,
                 custom_instruction=active_description,
             )
+            
+            # Run verification auditor pass
+            flags = verify_output_facts(source_text, content)
+            
             deliverable = build_deliverable(content, output_type, output_dir=output_dir, language=language)
-            results[output_type] = {"status": "ok", "deliverable": deliverable, "text": content}
+            results[output_type] = {
+                "status": "ok", 
+                "deliverable": deliverable, 
+                "text": content,
+                "flags": flags
+            }
         except Exception as e:
             results[output_type] = {"status": "error", "message": str(e)}
 

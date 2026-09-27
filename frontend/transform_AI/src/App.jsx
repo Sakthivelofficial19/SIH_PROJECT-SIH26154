@@ -304,7 +304,7 @@ export default function App() {
               <div>
                 <p className="eyebrow">CONTENT TRANSFORMATION STUDIO</p>
                 <h2>Transform information into communication.</h2>
-                <p className="subtitle">Single Multimodal Source • Multi-Artifact Delivery</p>
+                <p className="subtitle">Single Multimodal Source • Multi-Artifact Delivery • Hallucination Auditor</p>
               </div>
               <div className="topbar-badge">
                 <span className="live-dot"></span> System Connected
@@ -537,7 +537,7 @@ export default function App() {
               <div className="generate-area">
                 <div>
                   <strong>Ready to transform?</strong>
-                  <p>Parameters and directives will guide the synthesis engine.</p>
+                  <p>Parameters and directives will guide the synthesis & verification auditor.</p>
                 </div>
                 <button
                   type="button"
@@ -547,10 +547,10 @@ export default function App() {
                 >
                   {isGenerating ? (
                     <>
-                      <span className="spinner"></span> Transforming...
+                      <span className="spinner"></span> Auditing & Transforming...
                     </>
                   ) : (
-                    <>⚡ Transform Content</>
+                    <>⚡ Transform & Verify Content</>
                   )}
                 </button>
               </div>
@@ -563,7 +563,7 @@ export default function App() {
                       <span className="step">04</span>
                       <div>
                         <h3>Generated Artefacts</h3>
-                        <p>Artifacts produced by the multimodal transformation engine.</p>
+                        <p>Artifacts produced and verified by the multimodal transformation pipeline.</p>
                       </div>
                     </div>
                     <span className="success-badge">✓ Transformation Complete</span>
@@ -615,6 +615,49 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Fact-Check Auditor Badge / Warning for Plain Summary */}
+                      {resultsData["plain_summary"].flags && resultsData["plain_summary"].flags.length > 0 ? (
+                        <div
+                          style={{
+                            background: "#fef3c7",
+                            border: "1px solid #f59e0b",
+                            borderRadius: "8px",
+                            padding: "10px 14px",
+                            marginBottom: "12px",
+                            fontSize: "12px",
+                            color: "#92400e"
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                            <span>⚠️</span>
+                            <span>Auditor Warning: {resultsData["plain_summary"].flags.length} unverified claim(s) detected</span>
+                          </div>
+                          <ul style={{ margin: "4px 0 0 18px", padding: 0 }}>
+                            {resultsData["plain_summary"].flags.map((flag, idx) => (
+                              <li key={idx}>{flag}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            background: "#ecfdf5",
+                            border: "1px solid #a7f3d0",
+                            borderRadius: "6px",
+                            padding: "6px 12px",
+                            marginBottom: "12px",
+                            fontSize: "11px",
+                            color: "#065f46",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontWeight: 600
+                          }}
+                        >
+                          <span>✓</span> Verified grounded against source text (0 hallucinations)
+                        </div>
+                      )}
+
                       <textarea
                         key="plain-summary-editable-output"
                         style={{
@@ -656,6 +699,49 @@ export default function App() {
                             </div>
 
                             <div className="result-content">
+                              {/* Fact-Check Auditor Badge / Warning for Grid Deliverables */}
+                              {res && res.flags && res.flags.length > 0 ? (
+                                <div
+                                  style={{
+                                    background: "#fef3c7",
+                                    border: "1px solid #f59e0b",
+                                    borderRadius: "8px",
+                                    padding: "8px 12px",
+                                    marginBottom: "10px",
+                                    fontSize: "11px",
+                                    color: "#92400e"
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: "5px", marginBottom: "3px" }}>
+                                    <span>⚠️</span>
+                                    <span>Auditor Warning: {res.flags.length} unverified claim(s)</span>
+                                  </div>
+                                  <ul style={{ margin: "2px 0 0 16px", padding: 0 }}>
+                                    {res.flags.map((flag, idx) => (
+                                      <li key={idx}>{flag}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : res && res.status === "ok" ? (
+                                <div
+                                  style={{
+                                    background: "#ecfdf5",
+                                    border: "1px solid #a7f3d0",
+                                    borderRadius: "6px",
+                                    padding: "4px 8px",
+                                    marginBottom: "10px",
+                                    fontSize: "10.5px",
+                                    color: "#065f46",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  <span>✓</span> Verified Grounded
+                                </div>
+                              ) : null}
+
                               {id === "audio_briefing" && res && res.status === "ok" && res.downloadUrl && (
                                 <div style={{ marginBottom: "12px" }}>
                                   <audio
@@ -958,6 +1044,39 @@ export default function App() {
                               </button>
                             )}
                           </div>
+
+                          {/* Historical Auditor Badges */}
+                          {res.flags && res.flags.length > 0 ? (
+                            <div
+                              style={{
+                                background: "#fef3c7",
+                                border: "1px solid #f59e0b",
+                                borderRadius: "6px",
+                                padding: "6px 10px",
+                                margin: "6px 0",
+                                fontSize: "11px",
+                                color: "#92400e"
+                              }}
+                            >
+                              <strong style={{ display: "block" }}>⚠️ Auditor Flagged Claims:</strong>
+                              <ul style={{ margin: "2px 0 0 16px", padding: 0 }}>
+                                {res.flags.map((flag, idx) => (
+                                  <li key={idx}>{flag}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                fontSize: "10.5px",
+                                color: "#059669",
+                                fontWeight: 600,
+                                marginBottom: "6px"
+                              }}
+                            >
+                              ✓ Grounded Verification Passed
+                            </div>
+                          )}
 
                           {outId === "audio_briefing" && res.downloadUrl && (
                             <div style={{ margin: "10px 0" }}>

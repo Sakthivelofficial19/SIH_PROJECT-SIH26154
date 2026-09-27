@@ -13,7 +13,7 @@ from file_handler import run_pipeline, OUTPUT_TYPES
 from init_db import get_connection, setup_database
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://sih-project-ps-154.onrender.com")
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "[https://sih-project-ps-154.onrender.com](https://sih-project-ps-154.onrender.com)")
 
 app = FastAPI(title="TransformAI API")
 
@@ -156,6 +156,7 @@ async def transform_endpoint(
                     payload = {
                         "status": "ok",
                         "text": item.get("text", ""),
+                        "flags": item.get("flags", []),
                         "downloadUrl": f"{RENDER_EXTERNAL_URL}/downloads/{versioned_name}",
                         "filename": versioned_name
                     }
